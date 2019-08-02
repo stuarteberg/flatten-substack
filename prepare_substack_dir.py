@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import glob
+import json
 import argparse
 import subprocess
 from os.path import dirname, basename, abspath, join, exists, splitext
@@ -65,6 +66,10 @@ def main():
 
     os.makedirs(substack_slice_dir)
     os.makedirs(f"{substack_base_dir}/logs")
+
+    # Dump the final cookiecutter params to the output
+    with open(f'{substack_base_dir}/substack-params.json', 'w') as f:
+        json.dump(cookiecutter_params, f)
 
     subprocess.run(f'chmod -R g+w {substack_base_dir}', shell=True, check=True)
 
