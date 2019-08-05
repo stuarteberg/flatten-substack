@@ -1,3 +1,19 @@
+"""
+Given a substack base directory created by prepare_substack.py,
+launch a job on the LSF cluster to flatten it.
+
+This is just a wrapper around bsub with the proper arguments.
+
+EXAMPLE USAGE
+-------------
+
+    # First, prepare a substack directory (here, just 10 slices)
+    python prepare_substack_dir.py 2 10000 10010
+    
+    # Then launch the job for that directory
+    python launch_flatten.py --email-to bergs substack-Sec02-z10000-z10010
+
+"""
 import os
 import json
 import warnings
@@ -11,7 +27,7 @@ FLATTEN_SCRIPT = '/groups/flyem/data/alignment/facefinder/src/hxadjustheightsurf
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--email-to', '-e', help='Send email to this user upon job completion')
     parser.add_argument('substack_base_dir')
     args = parser.parse_args()
@@ -59,33 +75,6 @@ def main():
     bsub_cmd = ' '.join(bsub_args)
     bsub_output = subprocess.run(bsub_cmd, shell=True, check=True, capture_output=True)
     print(bsub_output.stdout.decode('utf-8'))
-    #job_id, queue_name, parse_bsub_output(bsub_output.stdout)
-
-
-def parse_bsub_output(bsub_output):
-    """
-    Parse the given output from the 'bsub' command and return the job ID and the queue name.
-
-    Example:
-        
-        >>> bsub_output = "Job <774133> is submitted to queue <spark>.\n"
-        >>> job_id, queue_name = parse_bsub_output(bsub_output)
-        >>> assert job_id == '774133'
-        >>> assert queue_name == 'spark'
-    """
-    nonbracket_text = '[^<>]*'
-    field_pattern = f"{nonbracket_text}<({nonbracket_text})>{nonbracket_text}"
-
-    NUM_FIELDS = 2
-    field_matches = re.match(NUM_FIELDS*field_pattern, bsub_output)
-
-    if not field_matches:
-        raise RuntimeError(f"Could not parse bsub output: {bsub_output}")
-
-    job_id = field_matches.groups()[0]
-    queue_name = field_matches.groups()[1]
-    return job_id, queue_name
-
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,34 @@
+"""
+The FlyEM tab "flattening" scripts are written to process an entire tab at a time,
+processing all of the PNG files in that slab's directory, such as:
+
+  /nrs/flyem/alignment/Z1217-19m/VNC/Sec02/zcorr/
+
+If you want to flatten only a subset of the slices for the slab,
+you can extract the slices of interest into a new directory,
+renumber them starting from 0, and run the flattening code on that new directory.
+
+This script is a little utility for preparing such directories of slice subsets,
+referred to here as "substacks".
+
+The directory and config file format is defined here using a template that can
+be rendered using the "cookiecutter" tool[1].
+
+Then the input slices are added to the substack directory via symlinks,
+which are renumbered starting with 0.
+
+To actually process the substack, see launch_flatten.py.
+
+[1]: https://cookiecutter.readthedocs.io/en/latest/
+
+EXAMPLE USAGE
+-------------
+
+    # Create a substack directory to process 100 slices
+    # from the middle of VNC section 02
+    python prepare_substack.py 2 10000 10100
+
+"""
 import os
 import re
 import sys
@@ -15,7 +46,7 @@ TEMPLATE_PATH = join(COOKIECUTTER_PATH, "{{cookiecutter.substack_name}}")
 DEFAULT_SLICE_DIR_PATTERN = "/nrs/flyem/alignment/{fly}/{region}/{tab_name}/zcorr"
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--fly', default='Z1217-19m')
     parser.add_argument('--region', default='VNC')
     parser.add_argument('--input-slice-dir', '-d')
@@ -51,7 +82,9 @@ def main():
     # The name of the rendered output directory (always equal to the substack_name)
     substack_base_dir = abspath(args.parent_output_dir) + '/' + args.substack_name
     substack_slice_dir = f"{substack_base_dir}/input_slices"
-    
+
+    # We use cookiecutter in completely non-interactive mode.
+    # Overwrite every context key with our own values.
     cookiecutter_params = {
       "substack_name": args.substack_name,
       "substack_base_dir": substack_base_dir,
@@ -61,13 +94,15 @@ def main():
       "bill_to": "flyem"
     }
     
+    # Run cookiecutter
     print(f"Creating {substack_base_dir}")
     cookiecutter(COOKIECUTTER_PATH, no_input=True, extra_context=cookiecutter_params)
 
     os.makedirs(substack_slice_dir)
     os.makedirs(f"{substack_base_dir}/logs")
 
-    # Dump the final cookiecutter params to the output
+    # Dump the final cookiecutter params to the output,
+    # for other scripts to use if necessary.
     with open(f'{substack_base_dir}/substack-params.json', 'w') as f:
         json.dump(cookiecutter_params, f)
 
