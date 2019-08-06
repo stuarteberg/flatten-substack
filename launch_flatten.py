@@ -10,7 +10,9 @@ EXAMPLE USAGE
     # First, prepare a substack directory (here, just 10 slices)
     python prepare_substack_dir.py 2 10000 10010
     
-    # Then launch the job for that directory
+    # Then launch the job for that directory.
+    # Do it via from the 'flyem' user.
+    su flyem
     python launch_flatten.py --email-to bergs substack-Sec02-z10000-z10010
 
 """
