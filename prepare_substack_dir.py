@@ -34,11 +34,18 @@ import re
 import sys
 import glob
 import json
+import shutil
 import argparse
 import subprocess
 from os.path import dirname, basename, abspath, join, exists, splitext
 
 from cookiecutter.main import cookiecutter
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda iterable, *args, **kwargs: list(iterable)
+    
 
 COOKIECUTTER_PATH = join(dirname(__file__), "substack-cookiecutter")
 TEMPLATE_PATH = join(COOKIECUTTER_PATH, "{{cookiecutter.substack_name}}")
@@ -52,6 +59,8 @@ def main():
     parser.add_argument('--input-slice-dir', '-d')
     parser.add_argument('--substack-name', '-n')
     parser.add_argument('--parent-output-dir', '-o', default='.')
+    parser.add_argument('--copy-input', '-c', action='store_true',
+                        help='If provided, copy the input slices into the substack directory instead of symlinking them.')
     parser.add_argument('tab_number', type=int)
     parser.add_argument('start_slice', type=int, help="First slice index to process.")
     parser.add_argument('stop_slice', type=int, help="One-beyond the last slice to process")
@@ -114,7 +123,6 @@ def main():
     all_input_slices = list(filter(lambda p: splitext(p)[1] in ('.png', '.tif'), all_input_slices))
     ext = splitext(all_input_slices[0])[1]
     
-    print(f"Creating symlinks in {substack_slice_dir}")
     indexed_slices = {}
 
     pat = re.compile(r"(\d+)")
@@ -126,10 +134,18 @@ def main():
         index = int(m.groups()[0])
         indexed_slices[index] = abspath(p)
 
-    for new_index, orig_index in enumerate(range(args.start_slice, args.stop_slice)):
+    if args.copy_input:
+        print(f"Copying input files to {substack_slice_dir}")
+    else:
+        print(f"Creating symlinks in {substack_slice_dir}")
+
+    for new_index, orig_index in tqdm([*enumerate(range(args.start_slice, args.stop_slice))]):
         src = indexed_slices[orig_index]
         dest = f"{substack_slice_dir}/{new_index:05d}{ext}"
-        os.symlink(src, dest)
+        if args.copy_input:
+            shutil.copyfile(src, dest)
+        else:
+            os.symlink(src, dest)
 
     print("DONE")
 
