@@ -24,9 +24,13 @@ To actually process the substack, see launch_flatten.py.
 EXAMPLE USAGE
 -------------
 
-    # Create a substack directory to process 100 slices
+    # Create a substack directory to process 100 symlinked slices
     # from the middle of VNC section 02
     python prepare_substack.py 2 10000 10100
+
+    # Create a substack directory to process 100 copied slices
+    # from the middle of VNC section 02
+    python prepare_substack.py --copy-input 2 10000 10100
 
 """
 import os
@@ -70,6 +74,9 @@ def main():
     region = args.region
     tab_name = f"Sec{args.tab_number:02d}"
 
+    #
+    # Set defaults
+    #
     if not args.input_slice_dir:
         args.input_slice_dir = DEFAULT_SLICE_DIR_PATTERN.format(**locals())
     
@@ -92,6 +99,10 @@ def main():
     substack_base_dir = abspath(args.parent_output_dir) + '/' + args.substack_name
     substack_slice_dir = f"{substack_base_dir}/input_slices"
 
+    #
+    # Run cookiecutter
+    #
+
     # We use cookiecutter in completely non-interactive mode.
     # Overwrite every context key with our own values.
     cookiecutter_params = {
@@ -103,10 +114,11 @@ def main():
       "bill_to": "flyem"
     }
     
-    # Run cookiecutter
     print(f"Creating {substack_base_dir}")
     cookiecutter(COOKIECUTTER_PATH, no_input=True, extra_context=cookiecutter_params)
 
+    # Must create these empty directories here, explicitly.
+    # (They aren't in the cookiecutter template because git can't store an empty directory.)
     os.makedirs(substack_slice_dir)
     os.makedirs(f"{substack_base_dir}/logs")
 
@@ -117,14 +129,15 @@ def main():
 
     subprocess.run(f'chmod -R g+w {substack_base_dir}', shell=True, check=True)
 
-    # Populate the input directory with symlinks to the original slices, but renumbered.
+    #
+    # Determine original slice numbers
+    #
     print(f"Reading filenames in {args.input_slice_dir}")
     all_input_slices = glob.glob(f"{args.input_slice_dir}/*")
     all_input_slices = list(filter(lambda p: splitext(p)[1] in ('.png', '.tif'), all_input_slices))
     ext = splitext(all_input_slices[0])[1]
-    
-    indexed_slices = {}
 
+    indexed_slices = {}
     pat = re.compile(r"(\d+)")
     for p in all_input_slices:
         m = pat.search(basename(p))
@@ -134,6 +147,9 @@ def main():
         index = int(m.groups()[0])
         indexed_slices[index] = abspath(p)
 
+    #
+    # Copy/symlink renumbered slices into the new directory
+    #
     if args.copy_input:
         print(f"Copying input files to {substack_slice_dir}")
     else:
